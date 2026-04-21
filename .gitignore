@@ -23,30 +23,17 @@ cmake-build-*/
 *.asv
 *.autosave
 
-# Editors / IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS noise
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Windows download metadata (in case new ones sneak in)
 *:Zone.Identifier
 
-# Strategy run outputs (big CSVs / pickles we regenerate)
 results/
 *.pkl
-
-# Claude Code artifacts — never commit
-.claude/
-.claude-*
-CLAUDE.md
-CLAUDE.local.md
-claude-*.md
-**/memory/
-**/.anthropic/
