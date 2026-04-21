@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+
+# C / C++
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+*.out
+build/
+cmake-build-*/
+
+# Matlab
+*.asv
+*.autosave
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Windows download metadata (in case new ones sneak in)
+*:Zone.Identifier
+
+# Strategy run outputs (big CSVs / pickles we regenerate)
+results/
+*.pkl
+
+# Claude Code artifacts — never commit
+.claude/
+.claude-*
+CLAUDE.md
+CLAUDE.local.md
+claude-*.md
+**/memory/
+**/.anthropic/
