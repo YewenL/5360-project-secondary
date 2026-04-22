@@ -232,8 +232,8 @@ def load_hlv_csv(path):
 
     return (
         dt.values.astype("datetime64[m]"),
-        df["Low"].to_numpy(dtype=np.float64),
         df["High"].to_numpy(dtype=np.float64),
+        df["Low"].to_numpy(dtype=np.float64),
         df["Close"].to_numpy(dtype=np.float64),
     )
 
@@ -243,4 +243,4 @@ def index_at_or_after(dt64, when_str):
     return int(np.searchsorted(dt64, np.datetime64(when_str), side="left"))
 
 def index_at_or_before(dt64, when_str):
-    return int(np.searchsorted(dt64, np.datetime64(when_str), side="left")) - 1
+    return int(np.searchsorted(dt64, np.datetime64(when_str), side="right")) - 1

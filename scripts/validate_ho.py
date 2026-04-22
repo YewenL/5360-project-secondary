@@ -1,6 +1,5 @@
 # validate src.strategy against instructor's HO reference outputs.
-# runs the engine on HO-5minHLV.csv for each (L, S) in the xlsx grids
-# and compares Profit / WorstDD / StDev / #trades for IS and OS windows.
+# runs the engine on HO-5minHLV.csv for each (L, S) in the xlsx grids and compares Profit / WorstDD / StDev / #trades for IS and OS windows.
 #
 # Usage:  .venv/bin/python scripts/validate_ho.py
 
@@ -25,9 +24,11 @@ DATA = ROOT / "instruction_and_data" / "HO-5minHLV.csv"
 OPT_XLSX = ROOT / "instruction_and_data" / "HO Optimization.xlsx"
 TEST_XLSX = ROOT / "instruction_and_data" / "HO MatLab Test.xlsx"
 
-# HO parameters from main.m
+# HO parameters. PV=42000 matches TF Data col H=420 *100
+# Slpg: main.m hard-codes 47; TF Data col V says 70.2. We use 47 here because the xlsx reference files were clearly generated with 47 (switching to 70.2
+# moves our PnL *further* from the reference, not closer -- see notes in README). For the final rolling-walk-forward production run, switch to 70.2 per the PDF.
 PV = 42_000.0
-SLPG = 47.0 * 2
+SLPG = 47.0
 BARS_BACK = 17001
 
 E0 = 100000.0
@@ -63,9 +64,8 @@ def load_reference_grid(xlsx_path):
             except ValueError:
                 continue
             key = (current_L, round(s, 3))
-            # HO Optimization layout: (None, '0.01:', 'in/out:', Pis, Dis, Sis, Tis, '/', Pos, Dos, Sos, Tos, ...)
-            # HO MatLab Test layout:  (None, '0.01:', 'in', 'out:', Pis, Dis, Sis, Tis, Pos, Dos, Sos, Tos, ...)
             if row[2] == "in/out:":
+                
                 pis, dis, sis, tis = row[3], row[4], row[5], row[6]
                 pos, dos, sos, tos = row[8], row[9], row[10], row[11]
                 
@@ -99,8 +99,8 @@ def check(label, got, want, tol_abs=0.05, tol_rel=1e-4):
         rel = abs(diff) / max(abs(w), 1e-9)
         this_ok = abs(diff) <= tol_abs or rel <= tol_rel
         ok = ok and this_ok
-        mark = '' if this_ok else ' <-- MISMATCH'
-        print(f'    {name} got={fmt(g)} want={fmt(w)} diff={fmt(diff)} (rel {rel:.2e}){mark}')
+        mark = '' if this_ok else 'MISMATCH???'
+        print(f'{name} got={fmt(g)} want={fmt(w)} diff={fmt(diff)} (rel {rel:.2e}){mark}')
     return ok
 
 
@@ -120,36 +120,44 @@ def main():
     print(f"IS bars [{is_lo:>7}, {is_hi:>7}]  ({dt[is_lo]} -> {dt[is_hi]})")
     print(f"OS bars [{os_lo:>7}, {os_hi:>7}]  ({dt[os_lo]} -> {dt[os_hi]})")
 
-    # HO Optimization.xlsx is the primary ref (IS 1980-2000, OS 2000-2023).
-    # HO MatLab Test.xlsx uses a short OS window and isn't directly comparable.
-    ref = load_reference_grid(OPT_XLSX)
-    print(f"  {len(ref)} reference (L,S) pairs loaded (from HO Optimization.xlsx)")
-
+    # Two reference tables:
+    #   HO Optimization.xlsx -- full grid. IS 1980-2000, OS 2000-2023.
+    #   HO MatLab Test.xlsx  -- small grid. IS window same; OS is a short window (~10 trades), so we only compare IS here.
+    # At common (L, S) points the two tables disagree on IS profit by ~10% while IS trade counts differ by 1-4 -- i.e. same decisions, different fill/slpg rules. Running both tells us which version our engine matches.
+    ref_opt = load_reference_grid(OPT_XLSX)
+    ref_test = load_reference_grid(TEST_XLSX)
+    print(f"  HO Optimization: {len(ref_opt)} (L,S) pairs")
+    print(f"  HO MatLab Test:  {len(ref_test)} (L,S) pairs")
 
     targets = [(12700, 0.010), (11500, 0.019)]
     extra = [(10000, 0.010), (10000, 0.020), (11000, 0.010)]
     targets.extend(extra)
 
-    
     for L_, S in targets:
         key = (L_, round(S, 3))
-        if key not in ref:
-            print(f"\n(L={L_}, S={S}) not in reference -- skipped")
+        in_opt = key in ref_opt
+        in_test = key in ref_test
+        if not in_opt and not in_test:
+            print(f"\n(L={L_}, S={S}) not in either reference -- skipped")
             continue
         t1 = time.time()
 
         res = run_strategy(H, L, C, chn_len=L_, stp_pct=S, pv=PV, slpg=SLPG,
-                           e0=E0)
-        wis = res.window_stats(os_lo, os_hi)
-        wos = res.window_stats(is_lo, is_hi)
+                           bars_back=BARS_BACK, e0=E0)
+        wis = res.window_stats(is_lo, is_hi)
+        wos = res.window_stats(os_lo, os_hi)
 
         got_is = (wis.profit, wis.worst_dd, wis.stdev, wis.trades)
         got_os = (wos.profit, wos.worst_dd, wos.stdev, wos.trades)
-        want = ref[key]
 
         print(f"\nL={L_}, S={S}   ({time.time()-t1:.2f}s)")
-        check("IS", got_is, want["is"])
-        check("OS", got_os, want["os"])
+        if in_opt:
+            print("vs HO Optimization.xlsx")
+            check("IS", got_is, ref_opt[key]["is"])
+            check("OS", got_os, ref_opt[key]["os"])
+        if in_test:
+            print("vs HO MatLab Test.xlsx (IS only; OS window differs)")
+            check("IS", got_is, ref_test[key]["is"])
 
     print(f"\nTotal: {time.time()-t0:.1f}s")
     return 0
