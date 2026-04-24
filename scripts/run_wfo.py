@@ -1,4 +1,17 @@
 """Command-line entry point for walk-forward optimization."""
+# how you run ex:
+#     .venv/bin/python scripts/run_wfo.py \
+#     --data instruction_and_data/PL-5minHLV/PL-5minHLV.csv \
+#     --pv 50 \
+#     --slpg 148 \
+#     --full \
+#     --parallel \
+#     --workers 8 \
+#     --out-dir results/pl_wfo_full
+
+#config workers is the core of your CPU, 8 workers would take less than 10 mins to run so feel free to test.
+
+
 
 import argparse
 from dataclasses import asdict
