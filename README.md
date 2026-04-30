@@ -14,21 +14,15 @@ Hey guys, I'm not sure if the task assignment here covers everything we need to 
 
 ---
 
-# MATH GR5360 Project Secondary Market GROUP 3
-
-Since the primary team already built most of the code framework, our focus should be on replacing the market data/parameters, running the required experiments, analyzing the results, and preparing the secondary-market slides.
-
-## Task Assignment
+## Task Assignment (Secondary Market — AUG Gold)
 
 | Whom | Responsibilities | Deliverables |
 | --- | --- | --- |
-| **S1** | Secondary market intro: contract description, trading hours, point value, tick size, slippage, currency conversion if needed | Market intro slides, contract specification table |
-| **S2** | Run Variance Ratio test and Push-Response test on secondary market data; interpret inefficiency type and time-scale | VR plots, Push-Response plots, trend-following / mean-reversion interpretation |
-| **S3** | Prepare secondary market data and parameters; run Channel WithDDControl on secondary market using existing Python/Numba framework | Clean secondary-market config, validated strategy output |
-| **S4** | Run rolling WFO: 4-year IS → next-quarter OOS, full 91,296-point grid search, save OOS results | OOS equity CSV, trade table, per-quarter optimal parameter table |
-| **S5** | Run full in-sample optimization and compare with WFO results | Full-IS equity CSV, best full-sample parameters, IS vs OOS comparison table |
-| **S6** | Compute performance statistics and decay coefficients; prepare plots and final PPT slides | Stats table, equity/DD plots, decay analysis, final secondary-market slides |
-
+| **S1** | Introduce Gold futures market (contract specs, trading hours, point value, tick size, liquidity); prepare and verify 5-min HLV data | Market introduction slides, data description |
+| **S2** | Reuse Primary group’s statistical tests: Variance Ratio Test and Push-Response Test; analyze short-term mean reversion and long-term trend behavior in Gold | VR(q) plots, Push-Response plots, interpretation |
+| **S3** | Execute core backtesting: run **Walk-Forward Optimization (4-year IS → 3-month OOS)** and write **Full In-Sample optimization** on AUG data; apply USD conversion (PV, slippage) | `run_wfo_secondary.py`, Full IS runner, WFO output CSVs (equity/trades/params), Full IS results |
+| **S4** | Compute performance metrics and decay analysis: compare WFO vs Full IS (Net Profit, Max Drawdown, NP/DD, Sharpe, etc.); calculate decay coefficients | Performance tables, decay analysis tables, comparison charts |
+| **S5** | Integrate PPT and cross-market analysis: organize AUG results; compare with Primary (PL) results and provide insights on differences in performance and robustness | Secondary slides, cross-market comparison visuals, final presentation script |
 ---
 
 ## Main Goals for Secondary Market
