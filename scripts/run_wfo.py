@@ -29,7 +29,7 @@ from src.stats import compute_stats, extract_trades, format_stats
 from src.strategy import load_hlv_csv
 from src.walk_forward import WFOConfig, WFOGrid, rolling_wfo, rolling_wfo_parallel
 
-DATA = ROOT / "instruction_and_data" / "HO-5minHLV.csv"
+DATA = ROOT / "instruction_and_data" / "PL-5minHLV.csv"
 
 
 def main():

@@ -1,6 +1,6 @@
 """Command-line entry point for walk-forward optimization."""
 # how you run ex:
-#     .venv/bin/python scripts/run_wfo.py \
+#     .venv/bin/python scripts/run_wfo_secondary.py \
 #     --data instruction_and_data/AUG-5minHLV.csv \
 #     --pv 1000 \
 #     --slpg 0.07\ 
