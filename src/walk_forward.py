@@ -8,8 +8,6 @@ import pandas as pd
 
 from src.strategy import (
     _run_core,
-    index_at_or_after,
-    index_at_or_before,
     rolling_max_prev,
     rolling_min_prev,
 )
@@ -17,6 +15,7 @@ from src.strategy import (
 
 @dataclass
 class WFOGrid:
+    
     l_values: np.ndarray
     s_values: np.ndarray
 
@@ -83,6 +82,7 @@ def _np_dd_ratio(profit: float, worst_dd: float) -> float:
 
 def _slice_with_warmup(H, L, C, win_lo: int, win_hi: int, chn_len: int):
     start = max(0, win_lo - chn_len)
+    
     H_s = H[start : win_hi + 1]
     L_s = L[start : win_hi + 1]
     C_s = C[start : win_hi + 1]
@@ -105,6 +105,7 @@ def _run_window_for_grid(H_arr, L_arr, C_arr,
             continue
         HH = rolling_max_prev(H_s, L_int)
         LL = rolling_min_prev(L_s, L_int)
+        
         local_lo = bb
         local_hi = win_hi - start
         per_s = {}
@@ -118,6 +119,7 @@ def _run_window_for_grid(H_arr, L_arr, C_arr,
             base_equity = float(cfg.e0) if local_lo == 0 else float(E[local_lo - 1])
             profit = float(E[local_hi] - base_equity)
             worst_dd = float(DD[local_lo : local_hi + 1].min())
+            
             trades = float(tr[local_lo : local_hi + 1].sum())
             per_s[float(S)] = (profit, worst_dd, trades)
         out.append((L_int, per_s))
@@ -169,56 +171,55 @@ def _run_single_window(H_arr, L_arr, C_arr,
     return profit, worst_dd, trades, seg_pnl, seg_tr, seg_pos
 
 
+def _bars_per_year(dt: np.ndarray) -> float:
+    span_seconds = (pd.Timestamp(dt[-1]) - pd.Timestamp(dt[0])).total_seconds()
+    span_years = span_seconds / (365.25 * 24 * 3600)
+    if span_years <= 0:
+        raise ValueError("dt must span a positive interval")
+    return len(dt) / span_years
+
+
 def iter_quarters(dt: np.ndarray, cfg: WFOConfig,
                   start: Optional[str] = None, end: Optional[str] = None):
     """Yield (label, is_lo, is_hi, os_lo, os_hi) for non-overlapping OS windows.
-
-    For the default three-month case, labels follow calendar quarters. Other
-    `os_months` values step by the requested number of calendar months.
+    Windows are sized by **bar count**, not calendar dates
+    
     """
     if cfg.os_months <= 0:
         raise ValueError("os_months must be positive")
-    dt_first = pd.Timestamp(dt[0])
-    dt_last = pd.Timestamp(dt[-1])
-    
-    earliest_os = dt_first + pd.DateOffset(years=cfg.is_years)
-    os_start = pd.Timestamp(start) if start else _first_os_start(earliest_os, cfg.os_months)
-    os_end_cap = pd.Timestamp(end) if end else dt_last
-    
-    cap = min(os_end_cap, dt_last)
-    q_start = os_start
-    while q_start <= cap:
-        q_end = q_start + pd.DateOffset(months=cfg.os_months) - pd.Timedelta(seconds=1)
-        if q_end > cap:
-            break
-        is_end = q_start - pd.Timedelta(seconds=1)
-        is_start_ts = q_start - pd.DateOffset(years=cfg.is_years)
-        is_lo = index_at_or_after(dt, str(is_start_ts))
-        is_hi = index_at_or_before(dt, str(is_end))
-        
-        os_lo = index_at_or_after(dt, str(q_start))
-        os_hi = index_at_or_before(dt, str(q_end))
-        if is_hi <= is_lo or os_hi <= os_lo:
-            q_start = q_start + pd.DateOffset(months=cfg.os_months)
+    n = len(dt)
+    if n < 2:
+        return
+
+    bars_per_year = _bars_per_year(dt)
+    is_bars = int(round(cfg.is_years * bars_per_year))
+    step_bars = int(round((cfg.os_months / 12.0) * bars_per_year))
+    if is_bars <= 0 or step_bars <= 0:
+        return
+
+    start_ts = pd.Timestamp(start) if start else None
+    end_ts = pd.Timestamp(end) if end else None
+
+    os_lo = is_bars
+    while os_lo + step_bars <= n:
+        os_hi = os_lo + step_bars - 1
+        is_lo = os_lo - is_bars
+        is_hi = os_lo - 1
+
+        os_start_ts = pd.Timestamp(dt[os_lo])
+        os_end_ts = pd.Timestamp(dt[os_hi])
+        if start_ts is not None and os_start_ts < start_ts:
+            os_lo += step_bars
             continue
-        yield (_period_label(q_start, cfg.os_months), is_lo, is_hi, os_lo, os_hi)
-        q_start = q_start + pd.DateOffset(months=cfg.os_months)
+        if end_ts is not None and os_end_ts > end_ts:
+            break
 
-
-def _first_os_start(earliest_os: pd.Timestamp, os_months: int) -> pd.Timestamp:
-    if os_months <= 0:
-        raise ValueError("os_months must be positive")
-    if os_months == 3:
-        return pd.date_range(start=earliest_os, periods=1, freq="QS")[0]
-    
-    month_start = earliest_os.to_period("M").to_timestamp()
-    if month_start < earliest_os:
-        month_start = month_start + pd.offsets.MonthBegin(1)
-    return month_start
+        yield (_period_label(os_start_ts, cfg.os_months), is_lo, is_hi, os_lo, os_hi)
+        os_lo += step_bars
 
 
 def _period_label(start_ts: pd.Timestamp, os_months: int) -> str:
-    if os_months == 3 and start_ts.month in (1, 4, 7, 10):
+    if os_months == 3:
         return f"{start_ts.year}Q{((start_ts.month - 1) // 3) + 1}"
     return f"{start_ts:%Y-%m}"
 
@@ -257,6 +258,7 @@ def _assemble_result(dt, quarter_outputs, cfg: WFOConfig) -> "WFOResult":
         
     pnl = np.concatenate([p for _, p, _, _ in quarter_outputs])
     tr = np.concatenate([t for _, _, t, _ in quarter_outputs])
+    
     pos = np.concatenate([s for _, _, _, s in quarter_outputs])
     dt_segs = [dt[q.os_lo : q.os_hi + 1] for q in quarters]
     
@@ -340,6 +342,6 @@ def rolling_wfo_parallel(dt, H, L, C, grid: WFOGrid, cfg: WFOConfig,
                       f"S={q.best_S:.3f} ISnpdd={q.is_npdd:>7.2f}  "
                       f"OSp={q.os_profit:>10.1f}  OStr={q.os_trades:>5.1f}")
 
-    # sort by os_lo so output order is chronological regardless of imap order
+
     outputs.sort(key=lambda o: o[0].os_lo)
     return _assemble_result(dt, outputs, cfg)
